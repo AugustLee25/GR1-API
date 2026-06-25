@@ -91,6 +91,7 @@ Hình ảnh sau khi hoạt động:
 Đo lường độ trễ (Benchmarking): Script tự động tính toán End-to-End Latency bằng time.perf_counter() và in ra terminal ở mỗi chu kỳ thành công.
 
 Persistent Connection: Tái sử dụng HTTP Session (Keep-Alive) và duy trì Socket RCON ngoài vòng lặp, giúp thời gian cập nhật giảm từ ~1400ms xuống ~900ms (nhanh gấp 1.5 lần).
+
 Trước khi tối ưu đường truyền RSS:
 <img width="1129" height="184" alt="image" src="https://github.com/user-attachments/assets/4cc5311b-00f4-47f4-be6d-2b86d375daa2" />
 
@@ -101,6 +102,7 @@ Sau khi tối ưu đường truyền RSS:
 Tự chữa lành (Fault Tolerance): Nếu Game Server bị tắt đột ngột hoặc khởi động lại, script Python sẽ không bị Crash. Nó sẽ bắt các ngoại lệ mất kết nối socket và tự động tái thiết lập đường truyền (Reconnect) ngay khi Server hoạt động trở lại.
 
 Đồng bộ hàng loạt (Multi-display Sync): Sử dụng lệnh /execute as kết hợp Query Selector để cập nhật đồng loạt tất cả bảng tin có tag hust_board trong thế giới, thay vì bị giới hạn cập nhật 1 thực thể đơn lẻ như lệnh /data modify thông thường.
+
 Các tin nhắn được đồng bộ hàng loạt:
 <img width="2559" height="1432" alt="image" src="https://github.com/user-attachments/assets/9f426b38-5ad7-4970-88d8-c5118f4a4e6a" />
 
