@@ -94,3 +94,10 @@ Persistent Connection: Tái sử dụng HTTP Session (Keep-Alive) và duy trì S
 Tự chữa lành (Fault Tolerance): Nếu Game Server bị tắt đột ngột hoặc khởi động lại, script Python sẽ không bị Crash. Nó sẽ bắt các ngoại lệ mất kết nối socket và tự động tái thiết lập đường truyền (Reconnect) ngay khi Server hoạt động trở lại.
 
 Đồng bộ hàng loạt (Multi-display Sync): Sử dụng lệnh /execute as kết hợp Query Selector để cập nhật đồng loạt tất cả bảng tin có tag hust_board trong thế giới, thay vì bị giới hạn cập nhật 1 thực thể đơn lẻ như lệnh /data modify thông thường.
+
+Trước khi tối ưu đường truyền RSS:
+<img width="1129" height="184" alt="image" src="https://github.com/user-attachments/assets/4cc5311b-00f4-47f4-be6d-2b86d375daa2" />
+
+Sau khi tối ưu đường truyền RSS:
+<img width="1138" height="168" alt="image" src="https://github.com/user-attachments/assets/9d7e4ab3-0f7d-4dfa-a8be-198fa0b4d5f4" />
+
