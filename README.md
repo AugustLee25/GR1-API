@@ -105,3 +105,54 @@ Trước khi tối ưu đường truyền RSS:
 Sau khi tối ưu đường truyền RSS:
 <img width="1138" height="168" alt="image" src="https://github.com/user-attachments/assets/9d7e4ab3-0f7d-4dfa-a8be-198fa0b4d5f4" />
 
+
+## 6. Phân tích Chi tiết Kiến trúc & Logic Mã nguồn (Code Analysis)
+
+Mã nguồn của hệ thống (`minecraft_news_rcon.py`) không chỉ dừng lại ở một script gửi lệnh đơn thuần, mà được thiết kế theo các tiêu chuẩn kỹ thuật phần mềm dành cho Backend Service, bao gồm Phân tách module, Tối ưu hóa TCP và Cơ chế tự phục hồi.
+
+### 6.1. Kiến trúc Phân rã (Decoupled Architecture)
+Hệ thống áp dụng triệt để nguyên lý Phân tách mối quan tâm (Separation of Concerns), chia luồng xử lý thành 3 phân vùng độc lập:
+1. **Data Ingestion (Thu thập dữ liệu):** Hàm `fetch_latest_titles` đóng vai trò cào dữ liệu thô. Thay vì dùng Regex dễ sinh lỗi, dự án sử dụng `BeautifulSoup` với trình phân tích `xml` để trích xuất chính xác các thẻ `<title>` từ luồng RSS, sau đó giới hạn số lượng tin trả về bằng tham số `NEWS_COUNT`.
+2. **Payload Formatting (Định dạng Dữ liệu):** Hàm `build_text_component` bọc các chuỗi văn bản thô vào cấu trúc **JSON Text Component** của Mojang. Việc tổ chức các mảng `extra` với thuộc tính `color` và `bold` giúp tái tạo giao diện UI sắc nét trong không gian Voxel.
+3. **Transport (Vận chuyển RCON):** Hàm `send_rcon_command` chịu trách nhiệm giao tiếp Socket cấp thấp, bọc chuỗi NBT và đẩy vào máy chủ game.
+
+### 6.2. Chiến lược Tối ưu hóa Luồng Mạng (TCP Optimization)
+Điểm sáng lớn nhất về mặt hiệu năng của hệ thống nằm ở cách quản lý vòng đời của các kết nối mạng:
+* **HTTP Keep-Alive (Session-based):** Việc khởi tạo `session = requests.Session()` ở ngoài vòng lặp `while True` giúp hệ thống không phải liên tục thực hiện quá trình bắt tay 3 bước (TCP 3-way Handshake) và đàm phán SSL/TLS với máy chủ `hust.edu.vn` ở mỗi chu kỳ 60 giây.
+* **Persistent RCON Connection:** Tương tự, đối tượng `MCRcon` được thiết lập và gọi `.connect()` một lần duy nhất khi khởi động script. Socket được giữ ở trạng thái mở (Persistent). Việc tái sử dụng đường hầm này giúp **độ trễ End-to-End giảm mạnh từ ~500ms xuống chỉ còn ~40ms**.
+
+### 6.3. Xử lý Dữ liệu NBT & Định dạng Đa ngôn ngữ (UTF-8)
+Để Minecraft (phiên bản 1.20.5+) có thể hiểu và hiển thị chính xác Tiếng Việt có dấu, mã nguồn sử dụng thủ thuật quan trọng trong quá trình Serialize dữ liệu:
+```
+python
+json_str = json.dumps(component, ensure_ascii=False, separators=(",", ":"))
+```
+Cờ ensure_ascii=False ngăn Python tự động chuyển đổi các ký tự Unicode (như Đồ án, Bách Khoa) thành chuỗi escape \uXXXX. Điều này giúp bảo toàn định dạng byte thô, ngăn chặn lỗi vỡ font hiển thị trên Client.
+
+Cờ separators=(",", ":") thực hiện nén chuỗi (Minify), loại bỏ toàn bộ khoảng trắng thừa để tiết kiệm băng thông khi truyền qua gói tin RCON.
+
+6.4. Cơ chế Tự chữa lành (Fault Tolerance & Self-healing)
+Trong quá trình vận hành liên tục, kết nối TCP có thể bị gián đoạn (do máy chủ game khởi động lại, sụt mạng rớt gói tin). Hệ thống bắt chặn các rủi ro này bằng khối ngoại lệ thông minh:
+```
+
+Python
+RCON_RECONNECT_ERRORS = (socket.error, ConnectionError, BrokenPipeError, OSError)
+try:
+    return rcon_client.command(command)
+except RCON_RECONNECT_ERRORS as exc:
+    rcon_client.connect() # Tự động thiết lập lại đường truyền
+    return rcon_client.command(command)
+
+```
+Nếu xảy ra lỗi ```BrokenPipeError``` (Đường hầm TCP bị đứt), thay vì chương trình văng lỗi (Crash), Daemon sẽ tự động gọi lại hàm ```.connect()``` để khôi phục socket và gửi lại lệnh, đảm bảo tính liên tục (High Availability) cho hệ thống bảng tin.
+
+6.5. Cập nhật Đa màn hình (Multi-display Synchronization)
+Thay vì sử dụng lệnh ```/data modify``` trực tiếp (vốn bị giới hạn bởi tham số ```limit=1``` gây lỗi chỉ cập nhật được màn hình đầu tiên), hệ thống sử dụng Query Selector nâng cao:
+
+```
+
+Python
+f"/execute as @e[type=text_display,tag=hust_board] run data modify entity @s text set value {json_str}"
+Lệnh /execute as sẽ quét toàn bộ không gian Virtual Campus. Bất kỳ thực thể nào mang thẻ hust_board đều sẽ bị ép thực thi lệnh thay đổi NBT lên chính nó (@s). Nhờ vậy, quản trị viên có thể summon hàng chục màn hình LED ở các khu vực khác nhau (Thư viện, Quảng trường C1, Cổng Parabol) và tất cả sẽ được đồng bộ hóa nội dung thời gian thực cùng một lúc.
+
+```
