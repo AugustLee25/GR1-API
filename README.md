@@ -37,7 +37,9 @@ Bash
 ```pip install requests beautifulsoup4 mcrcon lxml```
 (Mẹo: Bạn có thể lưu lệnh này vào file requirements.txt và chạy pip install -r requirements.txt)
 
-3. Cấu hình Máy chủ Minecraft (Server Configuration)
+---
+
+## 3. Cấu hình Máy chủ Minecraft (Server Configuration)
 Tải file paper-1.21-xxx.jar từ trang chủ PaperMC và đặt vào thư mục gốc.
 
 Chạy file .jar lần đầu tiên, sau đó mở file eula.txt và đổi eula=false thành eula=true.
@@ -53,9 +55,14 @@ rcon.password=123456
 Khởi động lại máy chủ bằng lệnh:
 
 DOS
-```java -jar <tên-file-paper>.jar```
+```
+java -jar <tên-file-paper>.jar
+VD: java -jar paper-26.1.2-64.jar
+```
+---
 
-4. Hướng dẫn Vận hành (Usage)
+
+## 4. Hướng dẫn Vận hành (Usage)
 Quá trình vận hành yêu cầu thực hiện song song trên Game Server và Terminal chạy Python.
 
 BƯỚC 4.1: Triệu hồi Bảng tin (Trong Game)
@@ -72,7 +79,10 @@ Mở một cửa sổ Terminal/CMD mới, di chuyển vào thư mục dự án v
 
 Bash
 ```python minecraft_news_rcon.py```
-5. Cơ chế hoạt động & Tính năng nổi bật
+
+---
+
+##5. Cơ chế hoạt động & Tính năng nổi bật
 Đo lường độ trễ (Benchmarking): Script tự động tính toán End-to-End Latency bằng time.perf_counter() và in ra terminal ở mỗi chu kỳ thành công.
 
 Persistent Connection: Tái sử dụng HTTP Session (Keep-Alive) và duy trì Socket RCON ngoài vòng lặp, giúp thời gian cập nhật giảm từ ~1400ms xuống ~900ms (nhanh gấp 1.5 lần).
