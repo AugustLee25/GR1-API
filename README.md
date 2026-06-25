@@ -134,7 +134,6 @@ Cờ separators=(",", ":") thực hiện nén chuỗi (Minify), loại bỏ toà
 6.4. Cơ chế Tự chữa lành (Fault Tolerance & Self-healing)
 Trong quá trình vận hành liên tục, kết nối TCP có thể bị gián đoạn (do máy chủ game khởi động lại, sụt mạng rớt gói tin). Hệ thống bắt chặn các rủi ro này bằng khối ngoại lệ thông minh:
 ```
-
 Python
 RCON_RECONNECT_ERRORS = (socket.error, ConnectionError, BrokenPipeError, OSError)
 try:
@@ -142,7 +141,6 @@ try:
 except RCON_RECONNECT_ERRORS as exc:
     rcon_client.connect() # Tự động thiết lập lại đường truyền
     return rcon_client.command(command)
-
 ```
 Nếu xảy ra lỗi ```BrokenPipeError``` (Đường hầm TCP bị đứt), thay vì chương trình văng lỗi (Crash), Daemon sẽ tự động gọi lại hàm ```.connect()``` để khôi phục socket và gửi lại lệnh, đảm bảo tính liên tục (High Availability) cho hệ thống bảng tin.
 
@@ -150,9 +148,7 @@ Nếu xảy ra lỗi ```BrokenPipeError``` (Đường hầm TCP bị đứt), th
 Thay vì sử dụng lệnh ```/data modify``` trực tiếp (vốn bị giới hạn bởi tham số ```limit=1``` gây lỗi chỉ cập nhật được màn hình đầu tiên), hệ thống sử dụng Query Selector nâng cao:
 
 ```
-
 Python
 f"/execute as @e[type=text_display,tag=hust_board] run data modify entity @s text set value {json_str}"
 Lệnh /execute as sẽ quét toàn bộ không gian Virtual Campus. Bất kỳ thực thể nào mang thẻ hust_board đều sẽ bị ép thực thi lệnh thay đổi NBT lên chính nó (@s). Nhờ vậy, quản trị viên có thể summon hàng chục màn hình LED ở các khu vực khác nhau (Thư viện, Quảng trường C1, Cổng Parabol) và tất cả sẽ được đồng bộ hóa nội dung thời gian thực cùng một lúc.
-
 ```
