@@ -71,14 +71,18 @@ BƯỚC 4.1: Triệu hồi Bảng tin (Trong Game)
 Đứng tại vị trí bạn muốn đặt màn hình LED, mở khung chat (phím T) và dán lệnh sau để khởi tạo thực thể nhận dữ liệu:
 
 Đoạn mã
-```/summon text_display ~ ~2 ~ {Tags:["hust_board"],billboard:"fixed",transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[0f,0f,0f],scale:[3f,3f,3f]},text:'{"text":"HỆ THỐNG READY - CHỜ KẾT NỐI PYTHON..."}'}```
+```
+/summon text_display ~ ~2 ~ {Tags:["hust_board"],billboard:"fixed",transformation:{left_rotation:[0f,0f,0f,1f],right_rotation:[0f,0f,0f,1f],translation:[0f,0f,0f],scale:[3f,3f,3f]},text:'{"text":"HỆ THỐNG READY - CHỜ KẾT NỐI PYTHON..."}'}
+```
 (Lưu ý: Hệ thống hỗ trợ cập nhật hàng loạt màn hình. Bạn có thể sử dụng lệnh này nhiều lần ở các vị trí khác nhau trong trường. Tất cả sẽ được đồng bộ cùng lúc).
 
 BƯỚC 4.2: Khởi động Tiến trình Python
 Mở một cửa sổ Terminal/CMD mới, di chuyển vào thư mục dự án và chạy lệnh:
 
 Bash
-```python minecraft_news_rcon.py```
+```
+python minecraft_news_rcon.py
+```
 
 ---
 
