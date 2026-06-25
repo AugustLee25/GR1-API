@@ -54,6 +54,7 @@ Khởi động lại máy chủ bằng lệnh:
 
 DOS
 ```java -jar <tên-file-paper>.jar```
+
 4. Hướng dẫn Vận hành (Usage)
 Quá trình vận hành yêu cầu thực hiện song song trên Game Server và Terminal chạy Python.
 
