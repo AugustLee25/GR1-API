@@ -10,7 +10,6 @@ Hệ thống phân phối dữ liệu đa phương tiện tự động (Data Pip
 Dự án áp dụng kiến trúc phân rã (Decoupled Architecture) và tối ưu hóa đường truyền mạng bằng kết nối duy trì (Persistent Connection), giúp giảm thiểu độ trễ (Latency) xuống mức tối đa.
 
 ---
-
 ## 1. Yêu cầu môi trường (Prerequisites)
 
 Để hệ thống hoạt động, máy chủ cần được cài đặt sẵn các môi trường sau:
@@ -21,6 +20,7 @@ Dự án áp dụng kiến trúc phân rã (Decoupled Architecture) và tối ư
 * **Môi trường Code (Python Daemon):**
   - Python 3.11 trở lên.
 
+---
 ## 2. Hướng dẫn Cài đặt (Installation)
 
 **Bước 1: Tải mã nguồn**
@@ -38,7 +38,6 @@ Bash
 (Mẹo: Bạn có thể lưu lệnh này vào file requirements.txt và chạy pip install -r requirements.txt)
 
 ---
-
 ## 3. Cấu hình Máy chủ Minecraft (Server Configuration)
 Tải file paper-1.21-xxx.jar từ trang chủ PaperMC và đặt vào thư mục gốc.
 
@@ -59,9 +58,8 @@ DOS
 java -jar <tên-file-paper>.jar
 VD: java -jar paper-26.1.2-64.jar
 ```
+
 ---
-
-
 ## 4. Hướng dẫn Vận hành (Usage)
 Quá trình vận hành yêu cầu thực hiện song song trên Game Server và Terminal chạy Python.
 
@@ -89,16 +87,10 @@ Hình ảnh sau khi hoạt động:
 
 
 ---
-
 ## 5. Cơ chế hoạt động & Tính năng nổi bật
 Đo lường độ trễ (Benchmarking): Script tự động tính toán End-to-End Latency bằng time.perf_counter() và in ra terminal ở mỗi chu kỳ thành công.
 
 Persistent Connection: Tái sử dụng HTTP Session (Keep-Alive) và duy trì Socket RCON ngoài vòng lặp, giúp thời gian cập nhật giảm từ ~1400ms xuống ~900ms (nhanh gấp 1.5 lần).
-
-Tự chữa lành (Fault Tolerance): Nếu Game Server bị tắt đột ngột hoặc khởi động lại, script Python sẽ không bị Crash. Nó sẽ bắt các ngoại lệ mất kết nối socket và tự động tái thiết lập đường truyền (Reconnect) ngay khi Server hoạt động trở lại.
-
-Đồng bộ hàng loạt (Multi-display Sync): Sử dụng lệnh /execute as kết hợp Query Selector để cập nhật đồng loạt tất cả bảng tin có tag hust_board trong thế giới, thay vì bị giới hạn cập nhật 1 thực thể đơn lẻ như lệnh /data modify thông thường.
-
 Trước khi tối ưu đường truyền RSS:
 <img width="1129" height="184" alt="image" src="https://github.com/user-attachments/assets/4cc5311b-00f4-47f4-be6d-2b86d375daa2" />
 
@@ -106,6 +98,13 @@ Sau khi tối ưu đường truyền RSS:
 <img width="1138" height="168" alt="image" src="https://github.com/user-attachments/assets/9d7e4ab3-0f7d-4dfa-a8be-198fa0b4d5f4" />
 
 
+Tự chữa lành (Fault Tolerance): Nếu Game Server bị tắt đột ngột hoặc khởi động lại, script Python sẽ không bị Crash. Nó sẽ bắt các ngoại lệ mất kết nối socket và tự động tái thiết lập đường truyền (Reconnect) ngay khi Server hoạt động trở lại.
+
+Đồng bộ hàng loạt (Multi-display Sync): Sử dụng lệnh /execute as kết hợp Query Selector để cập nhật đồng loạt tất cả bảng tin có tag hust_board trong thế giới, thay vì bị giới hạn cập nhật 1 thực thể đơn lẻ như lệnh /data modify thông thường.
+Các tin nhắn được đồng bộ hàng loạt:
+<img width="2559" height="1432" alt="image" src="https://github.com/user-attachments/assets/9f426b38-5ad7-4970-88d8-c5118f4a4e6a" />
+
+---
 ## 6. Phân tích Chi tiết Kiến trúc & Logic Mã nguồn (Code Analysis)
 
 Mã nguồn của hệ thống (`minecraft_news_rcon.py`) không chỉ dừng lại ở một script gửi lệnh đơn thuần, mà được thiết kế theo các tiêu chuẩn kỹ thuật phần mềm dành cho Backend Service, bao gồm Phân tách module, Tối ưu hóa TCP và Cơ chế tự phục hồi.
