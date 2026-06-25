@@ -72,7 +72,7 @@ python minecraft_news_rcon.py
 5. Cơ chế hoạt động & Tính năng nổi bật
 Đo lường độ trễ (Benchmarking): Script tự động tính toán End-to-End Latency bằng time.perf_counter() và in ra terminal ở mỗi chu kỳ thành công.
 
-Persistent Connection: Tái sử dụng HTTP Session (Keep-Alive) và duy trì Socket RCON ngoài vòng lặp, giúp thời gian cập nhật giảm từ ~500ms xuống ~40ms (nhanh gấp 10 lần).
+Persistent Connection: Tái sử dụng HTTP Session (Keep-Alive) và duy trì Socket RCON ngoài vòng lặp, giúp thời gian cập nhật giảm từ ~1400ms xuống ~900ms (nhanh gấp 1.5 lần).
 
 Tự chữa lành (Fault Tolerance): Nếu Game Server bị tắt đột ngột hoặc khởi động lại, script Python sẽ không bị Crash. Nó sẽ bắt các ngoại lệ mất kết nối socket và tự động tái thiết lập đường truyền (Reconnect) ngay khi Server hoạt động trở lại.
 
