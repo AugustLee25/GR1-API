@@ -84,9 +84,13 @@ Bash
 python minecraft_news_rcon.py
 ```
 
+Hình ảnh sau khi hoạt động:
+<img width="1199" height="693" alt="image" src="https://github.com/user-attachments/assets/3792376a-889b-46aa-a468-abb8c010f387" />
+
+
 ---
 
-##5. Cơ chế hoạt động & Tính năng nổi bật
+## 5. Cơ chế hoạt động & Tính năng nổi bật
 Đo lường độ trễ (Benchmarking): Script tự động tính toán End-to-End Latency bằng time.perf_counter() và in ra terminal ở mỗi chu kỳ thành công.
 
 Persistent Connection: Tái sử dụng HTTP Session (Keep-Alive) và duy trì Socket RCON ngoài vòng lặp, giúp thời gian cập nhật giảm từ ~1400ms xuống ~900ms (nhanh gấp 1.5 lần).
