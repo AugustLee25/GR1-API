@@ -35,7 +35,7 @@ Mở Terminal/CMD tại thư mục dự án và chạy lệnh cài đặt các t
 
 Bash
 ```pip install requests beautifulsoup4 mcrcon lxml```
-(Mẹo: Bạn có thể lưu lệnh này vào file requirements.txt và chạy pip install -r requirements.txt)
+(Có thể lưu lệnh này vào file requirements.txt và chạy pip install -r requirements.txt)
 
 ---
 ## 3. Cấu hình Máy chủ Minecraft (Server Configuration)
@@ -66,7 +66,7 @@ Quá trình vận hành yêu cầu thực hiện song song trên Game Server và
 BƯỚC 4.1: Triệu hồi Bảng tin (Trong Game)
 Đăng nhập vào server Minecraft thông qua địa chỉ 127.0.0.1.
 
-Đứng tại vị trí bạn muốn đặt màn hình LED, mở khung chat (phím T) và dán lệnh sau để khởi tạo thực thể nhận dữ liệu:
+Đứng tại vị trí bạn muốn đặt màn hình LED, mở khung chat/console (phím /) và dán lệnh sau để khởi tạo thực thể nhận dữ liệu:
 
 Đoạn mã
 ```
