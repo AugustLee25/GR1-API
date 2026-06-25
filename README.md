@@ -8,10 +8,15 @@ TÌM HIỂU VỀ KHẢ NĂNG ĐỒNG BỘ DỮ LIỆU GIỮA THẾ GIỚI THẬT
     CHƯƠNG 1: TỔNG QUAN VÀ ĐẶT VẤN ĐỀ
 1.1 Bối cảnh và Đặt vấn đề
 Minecraft Java Edition, với nền tảng mã nguồn mở và khả năng tùy biến sâu rộng, đã vượt qua giới hạn của một trò chơi giải trí thông thường để trở thành một môi trường mô phỏng không gian số (Sandbox/Metaverse) đắc lực. Tuy nhiên, một không gian ảo chỉ thực sự có giá trị khi nó duy trì được tính 'sống động' thông qua việc kết nối và phản ánh thông tin từ thế giới thực. Bài toán đặt ra là làm thế nào để thiết lập một cầu nối dữ liệu (Data Bridge) liên tục từ một API ngoại vi vào bên trong máy chủ Minecraft mà không can thiệp sâu vào mã nguồn (modding) phía máy khách (Client), đồng thời phải giải quyết được bài toán hiển thị trực quan (UI/UX) cho người dùng trong không gian 3D.
+
+
 1.2 Mục tiêu nghiên cứu
 Đề tài hướng tới ba mục tiêu cốt lõi:
+
 1. Đồng bộ dữ liệu xuyên nền tảng: Đọc, phân tách và truyền tải dữ liệu tự động từ API thực tế (RSS Feed của nhà trường) vào máy chủ game thông qua giao thức điều khiển từ xa (RCON).
+
 2. Phân tích tài liệu hệ thống lõi: Nghiên cứu cấu trúc dữ liệu NBT (Named Binary Tag) và giao thức TCP RCON từ các tài liệu gốc của Mojang và Valve để ánh xạ vào mã nguồn ứng dụng.
+
 3. Nghiên cứu UI/UX trong không gian khối (Voxel): Thực nghiệm đo lường kích thước hiển thị. Phân tích cụ thể một đoạn văn bản dài 20 ký tự (chuẩn thông báo) cần được thiết lập ma trận biến đổi cỡ nào (Scale), chiếm bao nhiêu Block không gian để đảm bảo tiêu chuẩn quang học từ xa.
 
 ---
@@ -24,6 +29,8 @@ Cấu trúc một gói tin RCON tiêu chuẩn gồm 4 trường dữ liệu đư
 - Loại gói tin (Type): 32-bit Integer. Giá trị 3 (SERVERDATA_AUTH) dùng để gửi mật khẩu xác thực; Giá trị 2 (SERVERDATA_EXECCOMMAND) dùng để chạy lệnh.
 - Nội dung dữ liệu (Payload): Chuỗi ASCII/UTF-8 chứa lệnh thực thi, bắt buộc kết thúc bằng hai byte Null (\x00\x00).
 Sự hiểu biết sâu sắc về tài liệu này là cơ sở để quyết định không sử dụng các lệnh shell thủ công mà ứng dụng thư viện chuyên dụng (như mcrcon trong Python) để xử lý việc mã hóa (pack) và giải mã (unpack) các luồng byte socket theo đúng chuẩn của máy chủ.
+
+
 2.2 Tài liệu gốc về Thực thể Text Display (Minecraft Wiki & Mojang Docs)
 Tài liệu kỹ thuật từ Minecraft Wiki quy định rất rõ về họ thực thể 'Display Entities' được giới thiệu từ bản vá 1.19.4. Trong đó, thực thể `text_display` được thiết kế chuyên biệt để thay thế các phương pháp hiển thị chữ cũ (như dùng Armor Stand). Điểm khác biệt cốt lõi nằm ở cách thực thể này lưu trữ nội dung văn bản. Văn bản không được lưu dưới dạng chuỗi thô (Raw string) mà được quản lý bởi thẻ NBT có tên là `text`, chứa dữ liệu tuân thủ định dạng JSON Text Component.
 Theo đặc tả của Mojang, một JSON Text Component hợp lệ hỗ trợ phân cấp cây thuộc tính sâu. Ví dụ một cấu trúc gốc:
@@ -36,6 +43,8 @@ Ngoài ra, tài liệu quy định thực thể này chịu sự chi phối củ
 Dựa trên các phân tích lý thuyết, hệ thống được thiết kế hoàn toàn theo mô hình phân rã module (Decoupling). Luồng công việc được phân tách thành hai tiến trình vật lý hoàn toàn độc lập:
 1. Tiến trình Ngoại vi (Python Daemon): Nắm giữ toàn bộ logic phức tạp bao gồm Fetching RSS từ API thực tế qua HTTPS, phân tách cú pháp XML, xử lý ngoại lệ mạng, và đóng gói JSON thành NBT. Tiến trình này chạy như một 'Công nhân ngầm' (Background Worker).
 2. Tiến trình Kết xuất (Máy chủ Paper): Đóng vai trò như một màn hình hiển thị (Render Engine). Nó duy trì hiệu năng xử lý ở mức tuyệt đối (20 TPS) bởi mọi thao tác nặng về I/O đã bị đẩy sang tầng Python. Server chỉ cần mở cổng TCP lắng nghe lệnh RCON và ghi đè dữ liệu vào bộ nhớ.
+
+
 3.2 Áp dụng tài liệu vào mã nguồn (Code Implementation)
 Lý thuyết về cấu trúc JSON Text Component và lệnh RCON đã được ánh xạ trực tiếp vào hàm biên dịch Payload trong Python như sau:
 Bước 1: Chuyển hóa dữ liệu thô sang cấu trúc Component
@@ -60,6 +69,28 @@ Tại cấu hình mặc định (Vector Scale `[1f, 1f, 1f]`), thực thể text
 Sau khi phóng đại gấp 3 lần, đoạn văn bản 20 ký tự mở rộng kích thước hiển thị. Để phần chữ nổi bật hoàn toàn, đề tài đã tiến hành xây dựng một phông nền (Background) vật lý ghép từ các khối Bê tông đen (Black Concrete). Kích thước tối thiểu thu được từ thực nghiệm để bọc vừa vặn vùng hiển thị này là: Chiều ngang 4 Blocks, Chiều cao 2 Blocks. Tổng diện tích bề mặt bảng tin cần thiết là 8 khối lập phương (8 block vuông).
 4.3 Cố định Góc nhìn quang học (Billboard Property)
 Trong UI/UX game 3D, các thực thể văn bản thường có xu hướng tự động quay mặt theo hướng di chuyển của camera người chơi (Billboard Center). Điều này gây ra sự phi thực tế nghiêm trọng đối với một bảng thông báo kiến trúc tĩnh. Dự án đã áp dụng tài liệu NBT để cưỡng chế thuộc tính `billboard: fixed` ngay khi triệu hồi thực thể. Kết quả là tấm bảng tin LED kích thước 4x2 blocks đóng vai trò như một màn hình thực tế hoàn hảo, cố định và sắc nét.
+
+---
+     
+        CHƯƠNG 5: TỐI ƯU HÓA LUỒNG DỮ LIỆU VÀ ĐÁNH GIÁ ĐỘ TRỄ
+5.1. Lý do cần tối ưu hóa mạng (The Bottleneck)
+Ở giai đoạn Prototype, hệ thống được lập trình theo cơ chế Stateless (Phi trạng thái). Mỗi vòng lặp (60 giây), hệ thống thực hiện hai chuỗi hành động tốn kém: mở HTTP get() rồi đóng, sau đó mở MCRcon() authenticate rồi đóng. Việc thực hiện quy trình bắt tay TCP (TCP 3-way Handshake) và đàm phán bảo mật (SSL/TLS) liên tục tạo ra một nút thắt cổ chai lớn về mặt thời gian.
+
+5.2. Cấu trúc lại mã nguồn với Persistent Connection
+File mã nguồn final đã áp dụng nguyên lý Kết nối duy trì (Persistent Connection) trên cả hai luồng:
+A. Tối ưu Ingestion (HTTP Keep-Alive):
+Trong hàm `main()`, một đối tượng `session = requests.Session()` được khởi tạo. Đối tượng này được truyền vào hàm cào dữ liệu ở mỗi chu kỳ. Session nội tại sẽ quản lý các kết nối Socket (urllib3 pool), cho phép tái sử dụng đường truyền đã thiết lập với máy chủ `hust.edu.vn`.
+B. Tối ưu Transport (Persistent RCON):
+Đối tượng `rcon_client` được di chuyển hoàn toàn ra ngoài vòng lặp `while True`. Hàm `rcon_client.connect()` chỉ được gọi đúng 1 lần duy nhất khi script khởi động. Khi đi vào vòng lặp, hệ thống tiết kiệm được hoàn toàn thời gian đóng/mở socket và thời gian gửi gói tin mã hóa SERVERDATA_AUTH.
+
+5.3. Đo lường Độ trễ và Kết quả
+Để đánh giá mức độ thành công của quá trình tối ưu, hàm `time.perf_counter()` được áp dụng để đo End-to-End Latency. Phạm vi đo lường bắt đầu ngay trước lệnh gọi API và kết thúc khi nhận được phản hồi thành công từ RCON.
+start_time = time.perf_counter()
+titles = fetch_latest_titles(session, RSS_URL, NEWS_COUNT)
+response = update_text_display(titles, rcon_client)
+end_time = time.perf_counter()
+latency_ms = (end_time - start_time) * 1000
+Kết quả thực nghiệm cho thấy sự cải thiện vượt bậc: Thời gian trễ mạng được rút ngắn từ khoảng ~1400ms (ở phiên bản cũ) xuống chỉ còn xấp xỉ ~900ms. Sự tối ưu này đóng vai trò quyết định, đảm bảo thông tin trên hàng loạt bảng LED trong Metaverse Đại học Bách Khoa được cập nhật gần như ngay lập tức (Real-time), không gây ra bất kỳ sự gián đoạn nào cho trải nghiệm người dùng.
 
 ---
     Cách Cài đặt
