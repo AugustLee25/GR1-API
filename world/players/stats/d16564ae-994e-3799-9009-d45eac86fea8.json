@@ -1,0 +1,49 @@
+{
+  "stats": {
+    "minecraft:dropped": {
+      "minecraft:rotten_flesh": 3,
+      "minecraft:polished_deepslate": 1
+    },
+    "minecraft:killed": {
+      "minecraft:slime": 2
+    },
+    "minecraft:picked_up": {
+      "minecraft:rotten_flesh": 3
+    },
+    "minecraft:custom": {
+      "minecraft:time_since_rest": 187489,
+      "minecraft:walk_one_cm": 62767,
+      "minecraft:leave_game": 2,
+      "minecraft:mob_kills": 2,
+      "minecraft:damage_dealt": 75,
+      "minecraft:play_time": 187489,
+      "minecraft:jump": 118,
+      "minecraft:time_since_death": 187489,
+      "minecraft:drop": 2,
+      "minecraft:sprint_one_cm": 3361,
+      "minecraft:total_world_time": 187489,
+      "minecraft:fly_one_cm": 232926,
+      "minecraft:crouch_one_cm": 1392,
+      "minecraft:sneak_time": 877
+    },
+    "minecraft:used": {
+      "minecraft:fox_spawn_egg": 1,
+      "minecraft:grass_block": 1,
+      "minecraft:mooshroom_spawn_egg": 1,
+      "minecraft:sniffer_spawn_egg": 1,
+      "minecraft:nautilus_spawn_egg": 1,
+      "minecraft:copper_golem_spawn_egg": 1,
+      "minecraft:polished_deepslate": 101,
+      "minecraft:enderman_spawn_egg": 1,
+      "minecraft:snow_golem_spawn_egg": 1,
+      "minecraft:rotten_flesh": 1,
+      "minecraft:snow_block": 41,
+      "minecraft:iron_golem_spawn_egg": 42,
+      "minecraft:black_concrete_powder": 59,
+      "minecraft:black_stained_glass_pane": 15,
+      "minecraft:polar_bear_spawn_egg": 1,
+      "minecraft:black_stained_glass": 145
+    }
+  },
+  "DataVersion": 4790
+}
