@@ -1,0 +1,337 @@
+#!/usr/bin/env python3
+"""
+Lấy tin HUST từ RSS và cập nhật bảng text_display trong Minecraft qua RCON.
+Minecraft 1.20.5+: text component là NBT Compound (SNBT), không bọc trong chuỗi JSON.
+Persistent Connection: HTTP Session (Keep-Alive) + RCON giữ kết nối xuyên suốt.
+"""
+
+from __future__ import annotations
+
+import json
+import socket
+import sys
+import time
+from datetime import datetime
+from typing import Any, List
+
+# Tránh lỗi Unicode trên console Windows
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+if hasattr(sys.stderr, "reconfigure"):
+    sys.stderr.reconfigure(encoding="utf-8")
+
+import requests
+from bs4 import BeautifulSoup
+from mcrcon import MCRcon
+
+# --- Cấu hình ---
+# Các hằng số này quyết định hành vi của chương trình:
+# - RSS_URL: địa chỉ nguồn tin RSS của HUST
+# - NEWS_COUNT: số tin cần lấy mỗi lần
+# - UPDATE_INTERVAL_SEC: khoảng thời gian giữa hai lần cập nhật
+# - RCON_*: thông tin kết nối đến server Minecraft qua RCON
+# - REQUEST_TIMEOUT: thời gian chờ tối đa khi gọi HTTP
+# - HTTP_USER_AGENT: chuỗi xác định bot khi gửi request đến website
+RSS_URL = "https://hust.edu.vn/vi/news/rss/"
+NEWS_COUNT = 5
+UPDATE_INTERVAL_SEC = 60
+
+RCON_HOST = "127.0.0.1"
+RCON_PORT = 25575
+RCON_PASSWORD = "123456"
+
+REQUEST_TIMEOUT = 20
+HTTP_USER_AGENT = "Mozilla/5.0 (HustMinecraftNewsBot/3.0)"
+
+# Những lỗi thường gặp khi kết nối RCON bị ngắt, dùng để tự động reconnect
+RCON_RECONNECT_ERRORS = (socket.error, ConnectionError, BrokenPipeError, OSError)
+
+
+def log_ok(message: str) -> None:
+    # In ra thông báo thành công với thời gian hiện tại để dễ theo dõi lịch sử chạy
+    print(f"[{timestamp()}] [THÀNH CÔNG] {message}")
+
+
+def log_err(message: str) -> None:
+    # In ra lỗi vào stderr thay vì stdout, phù hợp khi muốn phân biệt lỗi với log thông thường
+    print(f"[{timestamp()}] [LỖI] {message}", file=sys.stderr)
+
+
+def log_info(message: str) -> None:
+    # In ra thông tin trạng thái hoạt động của chương trình
+    print(f"[{timestamp()}] [THÔNG TIN] {message}")
+
+
+def log_latency(latency_ms: float) -> None:
+    # Ghi lại thời gian trễ từ lúc bắt đầu lấy tin cho đến khi Minecraft phản hồi
+    print(f"[{timestamp()}] [LATENCY] Thời gian trễ End-to-End: {latency_ms:.2f} ms")
+
+
+def timestamp() -> str:
+    # Trả về thời gian hiện tại theo định dạng dễ đọc, dùng cho log
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def fetch_latest_titles(
+    session: requests.Session,
+    url: str,
+    count: int = NEWS_COUNT,
+) -> List[str]:
+    """
+    Đọc RSS HUST qua persistent session và trả về danh sách tiêu đề mới nhất.
+
+    Ý tưởng:
+    - Dùng requests.Session để giữ kết nối HTTP lâu dài, tránh mở đóng kết nối liên tục.
+    - Gọi URL RSS của HUST.
+    - Parse nội dung XML bằng BeautifulSoup.
+    - Lấy các thẻ <item> và trích xuất tiêu đề từ thẻ <title>.
+    - Nếu không đủ số tin theo yêu cầu thì raise lỗi để chương trình biết cần xử lý.
+    """
+    log_info(f"Đang tải RSS: {url}")
+
+    # Gửi request đến RSS bằng session đã tạo sẵn ở main()
+    # timeout giúp tránh treo vô hạn nếu server phản hồi chậm
+    response = session.get(url, timeout=REQUEST_TIMEOUT)
+    response.raise_for_status()  # Nếu server trả lỗi 4xx/5xx thì raise exception
+
+    # Parse XML thành cấu trúc dễ xử lý bằng BeautifulSoup
+    soup = BeautifulSoup(response.content, "xml")
+
+    # RSS thường chứa nhiều <item>, mỗi item đại diện cho 1 tin
+    items = soup.find_all("item")
+
+    # Nếu không tìm thấy item nào thì có thể nguồn RSS bị đổi hoặc lỗi parse
+    if not items:
+        raise ValueError("Không tìm thấy thẻ <item> nào trong RSS HUST.")
+
+    titles: List[str] = []
+    for item in items:
+        # Dừng sớm nếu đã đủ số tin cần thiết, tránh xử lý dư thừa
+        if len(titles) >= count:
+            break
+
+        # Mỗi item có thẻ <title> chứa tiêu đề bài viết
+        title_tag = item.find("title")
+        if title_tag is None:
+            continue
+
+        title = title_tag.get_text(strip=True)
+        if title:
+            titles.append(title)
+
+    # Nếu số tin lấy được ít hơn mong muốn thì báo lỗi, vì việc cập nhật bảng sẽ thiếu dữ liệu
+    if len(titles) < count:
+        raise ValueError(
+            f"Chỉ lấy được {len(titles)} tiêu đề, cần ít nhất {count} tin."
+        )
+
+    return titles
+
+
+def build_text_component(titles: List[str]) -> dict[str, Any]:
+    """
+    Tạo cấu trúc text component cho Minecraft 1.20.5+.
+
+    Trong phiên bản mới, nội dung của text_display được lưu dưới dạng một object NBT
+    thay vì một chuỗi JSON đơn giản. Vì vậy, hàm này sẽ tạo ra một danh sách "extra"
+    chứa từng đoạn text riêng biệt, mỗi đoạn có thể có màu sắc, kiểu chữ, xuống dòng, vv.
+
+    Cấu trúc này tương tự như việc tạo nhiều dòng chữ khác nhau trong một khối hiển thị:
+    - dòng đầu: tiêu đề chính, màu đỏ và in đậm
+    - các dòng sau: mỗi tiêu đề tin, màu vàng và bắt đầu bằng dấu "-"
+    """
+    extra: List[dict[str, Any]] = [
+        {
+            # Dòng tiêu đề chính, có emoji và xuống dòng cuối để tách với phần tin tiếp theo
+            "text": "📣 TIN TỨC HUST MỚI NHẤT 📣\n",
+            "color": "red",
+            "bold": True,
+        },
+    ]
+
+    # Thêm từng tiêu đề vào danh sách extra, mỗi tiêu đề sẽ hiển thị trên một dòng riêng
+    for title in titles:
+        extra.append({"text": f"- {title}\n", "color": "yellow"})
+
+    # text rỗng là cần thiết vì toàn bộ nội dung nằm trong extra, không nằm trực tiếp ở text
+    return {"text": "", "extra": extra}
+
+
+def build_data_modify_command(titles: List[str]) -> str:
+    """
+    Tạo lệnh RCON để cập nhật nội dung của tất cả entity text_display có tag hust_board.
+
+    Bước này làm hai việc quan trọng:
+    1. Gọi build_text_component() để biến danh sách tiêu đề thành cấu trúc dữ liệu phù hợp
+       với Minecraft 1.20.5+.
+    2. Chuyển cấu trúc đó thành chuỗi JSON rồi chèn vào lệnh data modify.
+
+    Lệnh cuối cùng có dạng:
+    /execute as @e[type=text_display,tag=hust_board] run data modify entity @s text set value {...}
+
+    Điều này nghĩa là: chọn tất cả bảng hiển thị có tag hust_board và thay đổi thuộc tính text
+    của chúng thành nội dung mới.
+    """
+    component = build_text_component(titles)
+
+    # json.dumps chuyển dict Python thành chuỗi JSON chuẩn, có thể gửi trực tiếp qua RCON
+    # separators=(",", ":") giúp loại bỏ khoảng trắng thừa để chuỗi ngắn gọn hơn
+    json_str = json.dumps(component, ensure_ascii=False, separators=(",", ":"))
+
+    return (
+        f"/execute as @e[type=text_display,tag=hust_board] run data modify entity @s "
+        f"text set value {json_str}"
+    )
+
+
+def send_rcon_command(rcon_client: MCRcon, command: str) -> str:
+    """
+    Gửi lệnh RCON tới server Minecraft.
+
+    Vì kết nối RCON có thể bị ngắt giữa chừng, hàm này:
+    1. Thử gửi lệnh bình thường.
+    2. Nếu phát hiện lỗi kết nối, tự gọi connect() lại.
+    3. Gửi lại lệnh sau khi kết nối phục hồi.
+    """
+    try:
+        return rcon_client.command(command)
+    except RCON_RECONNECT_ERRORS as exc:
+        log_info(f"Mất kết nối RCON ({type(exc).__name__}: {exc}), đang thử kết nối lại ...")
+        rcon_client.connect()
+        log_ok(f"Đã khôi phục kết nối RCON {RCON_HOST}:{RCON_PORT}")
+        return rcon_client.command(command)
+
+
+def update_text_display(titles: List[str], rcon_client: MCRcon) -> str:
+    """
+    Tạo lệnh cập nhật và gửi nó qua RCON tới Minecraft.
+
+    Đây là bước trung tâm của chương trình: sau khi đã có tiêu đề tin, ta biến nó thành
+    nội dung hiển thị thích hợp cho text_display rồi gửi tới server.
+    """
+    command = build_data_modify_command(titles)
+
+    print("-" * 58)
+    log_info("Lệnh RCON sẽ gửi (kiểm tra trước khi chạy):")
+    print(command)
+    print("-" * 58)
+
+    return send_rcon_command(rcon_client, command)
+
+
+def run_update_cycle(session: requests.Session, rcon_client: MCRcon) -> bool:
+    """
+    Thực hiện một vòng cập nhật đầy đủ: lấy tin RSS -> hiển thị lên Minecraft -> trả về kết quả.
+
+    Nếu mọi việc thành công, hàm trả về True. Nếu có lỗi ở bất kỳ bước nào thì ghi log và trả về False.
+    """
+    try:
+        start_time = time.perf_counter()
+
+        # Bước 1: lấy tiêu đề tin từ RSS
+        titles = fetch_latest_titles(session, RSS_URL, NEWS_COUNT)
+        log_ok(f"Đã lấy {len(titles)} tiêu đề HUST:")
+        for index, title in enumerate(titles, start=1):
+            preview = title if len(title) <= 80 else f"{title[:77]}..."
+            print(f"    {index}. {preview}")
+
+        # Bước 2: gửi nội dung lên Minecraft qua RCON
+        response = update_text_display(titles, rcon_client)
+        end_time = time.perf_counter()
+        latency_ms = (end_time - start_time) * 1000
+        log_latency(latency_ms)
+
+        # Ghi lại phản hồi từ Minecraft để debug nếu cần
+        log_info(f"Phản hồi Minecraft: {response!r}")
+
+        # Nếu server trả về thông báo không tìm thấy entity thì có thể người dùng chưa tạo hust_board
+        if response and "No entity was found" in response:
+            log_err(
+                "Không tìm thấy text_display có tag=hust_board. "
+                "Hãy tạo entity và gắn tag trước khi chạy script."
+            )
+            return False
+
+        log_ok("Đã cập nhật bảng text_display (hust_board).")
+        return True
+
+    except requests.RequestException as exc:
+        log_err(f"Không tải được RSS: {exc}")
+    except ValueError as exc:
+        log_err(str(exc))
+    except RCON_RECONNECT_ERRORS:
+        log_err(
+            "Không kết nối được RCON. Kiểm tra server đang chạy và "
+            "enable-rcon=true trong server.properties."
+        )
+    except Exception as exc:  # noqa: BLE001
+        log_err(f"Lỗi không mong đợi: {type(exc).__name__}: {exc}")
+
+    return False
+
+
+def main() -> None:
+    """
+    Hàm chính của chương trình.
+
+    Nó làm 3 việc chính:
+    1. Tạo một session HTTP để gửi request đến RSS một cách hiệu quả.
+    2. Tạo một kết nối RCON bền vững đến máy chủ Minecraft.
+    3. Vào một vòng lặp vô tận, mỗi chu kỳ lấy tin mới rồi cập nhật text_display.
+    """
+    print("=" * 58)
+    print("  HUST NEWS → MINECRAFT TEXT_DISPLAY (RCON)")
+    print("  Định dạng: NBT Compound (Minecraft 1.20.5+)")
+    print("  Kết nối: Persistent HTTP Session + Persistent RCON")
+    print(f"  RSS: {RSS_URL}")
+    print(f"  Cập nhật mỗi {UPDATE_INTERVAL_SEC} giây — Nhấn Ctrl+C để dừng")
+    print("=" * 58)
+
+    # requests.Session giúp tái sử dụng kết nối HTTP, tối ưu hơn nhiều so với mỗi lần tạo mới
+    session = requests.Session()
+    session.headers.update({"User-Agent": HTTP_USER_AGENT})
+
+    # Tạo đối tượng RCON, nhưng chưa kết nối ngay lập tức cho đến khi gọi connect()
+    rcon_client = MCRcon(RCON_HOST, RCON_PASSWORD, port=RCON_PORT)
+
+    try:
+        log_info(f"Đang thiết lập kết nối RCON tới {RCON_HOST}:{RCON_PORT} ...")
+        rcon_client.connect()
+        log_ok(f"Đã kết nối RCON {RCON_HOST}:{RCON_PORT} (persistent)")
+
+        cycle = 0
+        while True:
+            cycle += 1
+            print("-" * 58)
+            log_info(f"=== Chu kỳ cập nhật #{cycle} ===")
+
+            # Mỗi vòng lặp gọi một lần cập nhật đầy đủ
+            success = run_update_cycle(session, rcon_client)
+            if success:
+                log_ok(f"Chu kỳ #{cycle} hoàn tất.")
+            else:
+                log_err(
+                    f"Chu kỳ #{cycle} thất bại — sẽ thử lại sau {UPDATE_INTERVAL_SEC}s."
+                )
+
+            log_info(f"Chờ {UPDATE_INTERVAL_SEC} giây trước lần cập nhật tiếp theo ...")
+            time.sleep(UPDATE_INTERVAL_SEC)
+
+    finally:
+        # Dù chương trình bị dừng bằng Ctrl+C hay lỗi xảy ra, vẫn cố gắng đóng kết nối sạch sẽ
+        try:
+            rcon_client.disconnect()
+            log_info("Đã đóng kết nối RCON.")
+        except Exception:  # noqa: BLE001
+            pass
+        session.close()
+        log_info("Đã đóng HTTP session.")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        print()
+        log_info("Đã dừng bot (Ctrl+C). Tạm biệt!")
+        sys.exit(0)
